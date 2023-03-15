@@ -1,30 +1,40 @@
 import pystray
 import webbrowser
-import PIL.Image
-import os
+import os.path
 import win32com.client as win32
-import pyautogui
 import socket
 import requests
+import subprocess
+import urllib.request
+import sys
+
+import pyautogui
+import PIL.Image
 from PIL import ImageGrab
 from functools import partial
 ImageGrab.grab = partial(ImageGrab.grab, all_screens=True)
 
-
-version = 'v1.0.1'
+version = 'v1.0.5'
 programName = 'GSL Groß GmbH' + ' ' + version
 
-programPath = os.path.dirname(__file__)
-logoPath = programPath + "\\logo.png"
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
+programPath = resource_path("")
+logoPath = resource_path("logo.png")
 
 imageName = socket.gethostname() + '.png'
 logoImage = PIL.Image.open(logoPath)
 toMail = "support@gsl-computer.de"
-rsURL = "https://www.gsl-computer.de/fernwartung-beauftragen/"
-updateURL = "https://api.github.com/repos/v2ray/v2ray-core/releases/latest"
-#https://github.com/v2ray/v2ray-core/releases
-#https://github.com/v2fly/v2ray-core/releases/tag/v4.31.0
-
+remoteSessionUrl = "https://www.gsl-computer.de/fernwartung-beauftragen/"
+collaborationPdfUrl = "https://www.gsl-computer.de/GSL_IT-Support.pdf"
+githubApiURL = "https://api.github.com/repos/gslgrossgmbh/gslsystray/releases/latest"
 
 #Funktion: Outlook mit oder ohne Anhang oeffnen
 def sendMailTo(attachment):
@@ -36,7 +46,7 @@ def sendMailTo(attachment):
 
     if attachment == True:
         #Erstellt Screenshot
-        attachmentFile = programPath + '\\' + imageName
+        attachmentFile = resource_path("") + imageName
         screenshot = pyautogui.screenshot()
         screenshot.save(attachmentFile)
         
@@ -50,64 +60,96 @@ def sendMailTo(attachment):
         #Entfernt den Screenshot wieder
         os.remove(attachmentFile)
 
-
-def remoteSessionWebsite():
-    webbrowser.open(rsURL)
-
-
-def checkUpdateURL():
+def loadGithubApi():
     result = False
     try:
-        requests.get(updateURL, timeout=5)
-        result = True
+        global apiResponse
+        apiResponse = requests.get(githubApiURL, timeout=5)
+        return apiResponse
+    except requests.ConnectionError:
+        print("No ethernet connection.")
+        return False
     except requests.exceptions.Timeout:
+        print("URL request timeout.")
         result = False
     return result
 
-
-def checkGithubVersion():
-    if checkUpdateURL():
+def downloadGithubVersion():
+    try:            
+        global newDownloadUrl
+        newDownloadUrl = apiResponse.json()["assets"][0]["browser_download_url"]
+        global newDownloadDirectory
+        newDownloadDirectory = resource_path("gslsystray.exe")
         try:
-            response = requests.get(updateURL)
-            return response.json()["name"]
+            pass
+            os.rename(resource_path("gslsystray.exe"), resource_path("gslsystray_old.exe"))
         except:
-            return "0.0.0"
-    else:
-        return False
-        
+            pass
+        urllib.request.urlretrieve(newDownloadUrl, newDownloadDirectory)
+    except:
+        print("Download not possible.")
 
+def deleteOldExe():
+    try:
+        os.remove(resource_path("gslsystray_old.exe"))
+    except:
+        print("No old .exe found. Passing file deleting.")
+
+#SysTray on_clicked Funktionen
 def on_clicked(icon, item):
     if str(item) == "Ticket erstellen (mit Screenshot)":
         sendMailTo(True)
     elif str(item) == "Ticket erstellen":
         sendMailTo(False)
-    elif str(item) == "RS-Client":
-        remoteSessionWebsite()
+    elif str(item) == "Zusammenarbeit mit dem GSL-Support":
+        webbrowser.open(collaborationPdfUrl)
+    elif str(item) == "Download zum Fernwartungsmodul":
+        webbrowser.open(remoteSessionUrl)
     elif str(item) == "Schließen":
         icon.stop()
-
 
 #SytemTray aufbauen
 icon = pystray.Icon("GSLSystray", logoImage, menu=pystray.Menu(
     pystray.MenuItem(programName, None, enabled=False),
     pystray.MenuItem("Ticket erstellen", on_clicked),
     pystray.MenuItem("Ticket erstellen (mit Screenshot)", on_clicked),
-    pystray.MenuItem("RS-Client", on_clicked),
-
+    pystray.MenuItem("Nüztliche Links", 
+        pystray.Menu(pystray.MenuItem("Zusammenarbeit mit dem GSL-Support", on_clicked),
+        pystray.MenuItem("Download zum Fernwartungsmodul", on_clicked))
+    ),
     pystray.MenuItem("Schließen", on_clicked)
 ))
 
+deleteOldExe()
 
-#Pruefe auf Github Version
-checkGithubVersion = checkGithubVersion()
-if checkGithubVersion == False:
-    print("URL nicht gefunden")
-elif checkGithubVersion == "0.0.0":
-    print("Github Version nicht gefunden")
-elif checkGithubVersion == version:
-    print("Version aktuell")
-elif checkGithubVersion != version:
-    print("Version " + checkGithubVersion + " gefunden. Installiert ist " + version)
+#Pruefe Github Version
+loadedGitApi = loadGithubApi()
+if loadedGitApi != False:
+    loadedGitApi_filled = True
+    try:
+        loadedGitApi.json()["name"]
+    except:
+        loadedGitApi_filled = False
+
+if loadedGitApi != False:
+    if loadedGitApi_filled == True:
+        if loadedGitApi.json()["name"] == version:
+            print("Version up to date")
+        else:
+            print("Version " + loadedGitApi.json()["name"] + " found. Downloading new version " + version)
+            downloadGithubVersion()
+
+            try:
+                print("Starting new .exe.")
+                subprocess.Popen(newDownloadDirectory, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
+            except:
+                print("Could not start subprocess")
+
+            sys.exit()
+    else:
+        print(loadedGitApi.json()["message"])
+elif loadedGitApi == False:
+    print("Github Url: " + githubApiURL + " not found.")
 
 #Erzeuge SystemTray
 icon.run()
