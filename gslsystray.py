@@ -113,7 +113,7 @@ icon = pystray.Icon("GSLSystray", logoImage, menu=pystray.Menu(
     pystray.MenuItem(programName, None, enabled=False),
     pystray.MenuItem("Ticket erstellen", on_clicked),
     pystray.MenuItem("Ticket erstellen (mit Screenshot)", on_clicked),
-    pystray.MenuItem("Nüztliche Links", 
+    pystray.MenuItem("Nützliche Links", 
         pystray.Menu(pystray.MenuItem("Zusammenarbeit mit dem GSL-Support", on_clicked),
         pystray.MenuItem("Download zum Fernwartungsmodul", on_clicked))
     ),
