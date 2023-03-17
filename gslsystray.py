@@ -14,7 +14,7 @@ from PIL import ImageGrab
 from functools import partial
 ImageGrab.grab = partial(ImageGrab.grab, all_screens=True)
 
-version = 'v1.0.5'
+version = 'v1.0.6'
 programName = 'GSL Groß GmbH' + ' ' + version
 
 def resource_path(relative_path):
@@ -89,6 +89,10 @@ def downloadGithubVersion():
     except:
         print("Download not possible.")
 
+def getClientID():
+    hostname = socket.gethostname()
+    return "Client-ID: " + hostname
+
 def deleteOldExe():
     try:
         os.remove(resource_path("gslsystray_old.exe"))
@@ -113,10 +117,11 @@ icon = pystray.Icon("GSLSystray", logoImage, menu=pystray.Menu(
     pystray.MenuItem(programName, None, enabled=False),
     pystray.MenuItem("Ticket erstellen", on_clicked),
     pystray.MenuItem("Ticket erstellen (mit Screenshot)", on_clicked),
-    pystray.MenuItem("Nützliche Links", 
-        pystray.Menu(pystray.MenuItem("Zusammenarbeit mit dem GSL-Support", on_clicked),
-        pystray.MenuItem("Download zum Fernwartungsmodul", on_clicked))
-    ),
+    pystray.MenuItem("Nützliche Informationen", pystray.Menu(
+        pystray.MenuItem(getClientID(), None, enabled=False),
+        pystray.MenuItem("Zusammenarbeit mit dem GSL-Support", on_clicked),
+        pystray.MenuItem("Download zum Fernwartungsmodul", on_clicked)
+    )),
     pystray.MenuItem("Schließen", on_clicked)
 ))
 
