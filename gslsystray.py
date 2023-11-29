@@ -14,7 +14,7 @@ from PIL import ImageGrab
 from functools import partial
 ImageGrab.grab = partial(ImageGrab.grab, all_screens=True)
 
-version = 'v1.0.6'
+version = 'v1.0.7'
 programName = 'GSL Groß GmbH' + ' ' + version
 
 def resource_path(relative_path):
@@ -33,7 +33,7 @@ imageName = socket.gethostname() + '.png'
 logoImage = PIL.Image.open(logoPath)
 toMail = "support@gsl-computer.de"
 remoteSessionUrl = "https://www.gsl-computer.de/fernwartung-beauftragen/"
-collaborationPdfUrl = "https://www.gsl-computer.de/GSL_IT-Support.pdf"
+collaborationPdfUrl = "https://www.gsl-computer.de/GSL_IT-Support"
 githubApiURL = "https://api.github.com/repos/gslgrossgmbh/gslsystray/releases/latest"
 
 #Funktion: Outlook mit oder ohne Anhang oeffnen
